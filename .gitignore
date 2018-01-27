@@ -33,6 +33,7 @@
 *.log
 *.aps
 
-
+.vs
 Debug
 Release
+obj
