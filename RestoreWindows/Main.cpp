@@ -350,6 +350,56 @@ void PauseWindowTracking()
 	IsPaused = true;
 }
 
+void SendKey(WORD key, DWORD dwFlag)
+{
+	INPUT input;
+	input.type = INPUT_KEYBOARD;
+	input.ki.wVk = key;
+	input.ki.wScan = 0;
+	input.ki.dwFlags = KEYEVENTF_UNICODE | dwFlag;
+	input.ki.time = 0;
+	input.ki.dwExtraInfo = GetMessageExtraInfo();
+	SendInput(1, &input, sizeof(input));
+}
+
+void SendKeyDownAndUp(WORD key, DWORD delay)
+{
+	// KeyDown
+	SendKey(key, 0);
+
+	// If the target is polling for messages then an instantaneous down and
+	// up may get missed. Adding a delay will help this
+	if (delay > 0)
+	{
+		Sleep(delay);
+	}
+
+	// KeyUp
+	SendKey(key, KEYEVENTF_KEYUP);
+}
+
+void WakeScreen()
+{
+	Log("WakeScreen()\n");
+
+	// Get the foreground window
+	HWND hWndForeground = GetForegroundWindow();
+
+	// Show and hide the start menu - forces Windows to stop dicking around
+	Log("Sending windows key twice\n");
+	WORD keyCode = VK_LWIN;
+	SendKeyDownAndUp(keyCode, 50);
+	Sleep(500);
+	SendKeyDownAndUp(keyCode, 50);
+
+	// then set foreground window again
+	if (hWndForeground != NULL)
+	{
+		Log("Setting foreground window\n");
+		SetForegroundWindow(hWndForeground);
+	}
+}
+
 void CALLBACK ResumeWindowTracking(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
 	KillTimer(hwnd, idEvent);
@@ -361,10 +411,13 @@ void CALLBACK ResumeWindowTracking(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD
 	if(!IsDesiredMonitorLayout())
 		return;
 
+	Log(" ========== RESTORE WINDOW PLACEMENTS =========\n");
+	RestoreWindowPlacements();
+	WakeScreen();
+
 	Log(" =========== RESUME WINDOW TRACKING ===========\n");
 	IsPaused = false;
 
-	RestoreWindowPlacements();
 }
 
 void ScheduleResumeWindowTracking()
